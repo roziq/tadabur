@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Buka Mushaf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f2a24;--bg2:#17382f;--paper:#f8f4e6;--ink:#1d2a25;--mute:#6b7a72;--line:#d8cfae;--gold:#b8923a;--gold-d:#8a6a1f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#e8e4d2;font:17px/1.6 'Alegreya Sans',system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:28px 14px 72px}
+h1{font-size:1.6rem;font-weight:700;margin:0 0 2px;color:#f3e7c2}
+.sub{margin:0 0 22px;color:#a9b8af}
+.step{display:none}.step.on{display:block}
+button{font:inherit;font-weight:500;cursor:pointer;border-radius:6px;border:1px solid var(--gold);padding:10px 18px;background:var(--gold);color:#1b1608}
+button.ghost{background:transparent;color:#f3e7c2}
+button:focus-visible,textarea:focus-visible{outline:3px solid #f3e7c2;outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.spread{display:flex;direction:rtl;background:var(--paper);color:var(--ink);border-radius:4px;box-shadow:0 0 0 5px var(--gold-d),0 14px 40px #0008}
+.pg{flex:1;min-width:0;padding:20px 22px 14px;direction:rtl}
+.pg+.pg{border-right:2px solid var(--line)}
+.ar{font-family:'Amiri Quran',serif;font-size:1.5rem;line-height:2.4;text-align:justify}
+.num{color:var(--gold-d);font-size:.85em;margin:0 .2em}
+.sh{text-align:center;border:1.5px solid var(--gold);border-radius:4px;margin:12px 0 4px;padding:2px 8px;background:#efe6c6}
+.sh small{font:500 .8rem 'Alegreya Sans',sans-serif;color:var(--mute);margin-right:8px}
+.bsm{text-align:center}
+.pno{text-align:center;direction:ltr;color:var(--mute);font-size:.9rem}
+.meta{margin:16px 0 8px;color:#f3e7c2}
+.meta span{color:#a9b8af}
+details{margin-top:12px;background:var(--bg2);border-radius:6px;padding:10px 14px}
+summary{cursor:pointer;font-weight:500}
+details p{margin:.5em 0;color:#d6dccf}
+.tr b{color:#e1c36e;margin-right:6px}
+.form{margin-top:22px;display:grid;gap:12px}
+.form label{display:block;font-weight:500;margin-bottom:3px;color:#f3e7c2}
+textarea{width:100%;border-radius:6px;border:1px solid #3c5b50;background:#0b1f1a;color:#eee;font:inherit;padding:8px 10px;min-height:76px;resize:vertical}
+[hidden]{display:none!important}
+.ay{cursor:pointer;border-radius:4px}.ay:hover{background:#efe6c6}.ay.pick{background:#e8d58f}
+.hint{color:#a9b8af;margin:0 0 4px}
+.chips{display:flex;gap:10px;flex-wrap:wrap}
+.chip{width:36px;height:36px;border-radius:50%;border:3px solid transparent;padding:0}
+.chip.on{border-color:#fff}
+#cv{width:100%;max-width:440px;border-radius:6px;display:block}
+#st{min-height:1.5em;color:#e1c36e}
+@media(max-width:720px){.spread{flex-direction:column}.pg+.pg{border-right:0;border-top:2px solid var(--line)}.ar{font-size:1.35rem}}
+@media(prefers-reduced-motion:no-preference){.spread{animation:buka .5s ease-out}@keyframes buka{from{opacity:0;transform:scale(.97)}}}
+</style>
+</head>
+<body>
+<main>
+<h1>Buka Mushaf</h1>
+<p class="sub">Baca Al-Fatihah, bawa persoalanmu, lalu buka dua halaman.</p>
+
+<section id="s1" class="step on">
+  <div class="spread"><div class="pg" id="fat" style="direction:rtl">Memuat Al-Fatihah…</div></div>
+  <div class="form">
+    <div><label for="niat">Persoalan atau niat (boleh kosong)</label><textarea id="niat"></textarea></div>
+    <div class="row" style="margin-top:0"><button id="buka">Sudah baca Al-Fatihah, buka mushaf</button></div>
+  </div>
+</section>
+
+<section id="s2" class="step">
+  <div class="spread" id="spread"></div>
+  <p class="meta" id="meta"></p>
+  <p class="hint">Ketuk satu ayat untuk menandainya sebagai ayat utama.</p>
+  <details><summary>Terjemah Indonesia</summary><div id="tr" class="tr"></div></details>
+  <div class="form" id="form"></div>
+  <div class="row">
+    <button id="simpan">Simpan ke Sheet</button>
+    <button id="salin" class="ghost">Salin teks untuk dibedah AI</button>
+    <button id="baru" class="ghost">Sesi baru</button>
+  </div>
+  <p id="st" role="status"></p>
+  <div class="form" id="share" hidden>
+    <div><label>Kartu WhatsApp <span id="pk"></span></label><div class="chips" id="chips"></div></div>
+    <canvas id="cv" width="1080" height="1350"></canvas>
+    <div class="row" style="margin-top:0"><button id="wa">Bagikan ke WhatsApp</button><button id="wat" class="ghost">Salin teks WA</button></div>
+  </div>
+</section>
+</main>
+
+<script>
+// Isi dengan URL Web App Apps Script (lihat Code.gs). Kosong = hasil disalin ke clipboard.
+const SCRIPT_URL = '';
+
+const API = 'https://api.alquran.cloud/v1/page/';
+const $ = s => document.querySelector(s);
+const strip = s => s.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640\uFEFF]/g, '');
+const arN = n => n.toLocaleString('ar-EG');
+const cache = new Map();
+let cur = null;
+
+const FIELDS = [
+  ['asbab', 'Asbabun nuzul dan konteks'],
+  ['kisah', 'Kisah atau tema'],
+  ['hukum', 'Perintah, anjuran, larangan'],
+  ['tafsir', 'Tafsir (sebutkan kitab rujukannya)'],
+  ['ringkas', 'Rangkuman'],
+  ['pelajaran', 'Pelajaran untuk persoalanku'],
+  ['lain', 'Catatan lain']
+];
+$('#form').innerHTML = FIELDS.map(([k, l]) => `<div><label for="f_${k}">${l}</label><textarea id="f_${k}"></textarea></div>`).join('');
+
+async function getPage(n) {
+  if (cache.has(n)) return cache.get(n);
+  const [a, t] = await Promise.all([
+    fetch(API + n + '/quran-uthmani').then(r => r.json()),
+    fetch(API + n + '/id.indonesian').then(r => r.json())
+  ]);
+  const p = { n, ar: a.data.ayahs, id: t.data.ayahs };
+  cache.set(n, p);
+  return p;
+}
+
+function pageHTML(p) {
+  let h = '';
+  p.ar.forEach(a => {
+    let t = a.text.replace(/^\uFEFF/, '');
+    if (a.numberInSurah === 1) {
+      h += `<div class="sh">${a.surah.name}<small dir="ltr">${a.surah.number}. ${a.surah.englishName}</small></div>`;
+      if (a.surah.number !== 1 && a.surah.number !== 9) {
+        const w = t.split(' ');
+        if (strip(w[0]) === 'بسم') { h += `<div class="bsm">${w.slice(0, 4).join(' ')}</div>`; t = w.slice(4).join(' '); }
+      }
+    }
+    h += `<span class="ay" data-k="${a.surah.number}:${a.numberInSurah}">${t}<span class="num">\u06DD${arN(a.numberInSurah)}</span></span> `;
+  });
+  return `<div class="ar">${h}</div><div class="pno">Halaman ${p.n}</div>`;
+}
+
+function rangeText(pages) {
+  const m = new Map();
+  pages.flatMap(p => p.ar).forEach(a => {
+    const k = a.surah.number, e = m.get(k);
+    if (!e) m.set(k, { name: a.surah.englishName, from: a.numberInSurah, to: a.numberInSurah });
+    else e.to = a.numberInSurah;
+  });
+  return [...m.entries()].map(([k, v]) => `${v.name} (${k}) ayat ${v.from}-${v.to}`).join('; ');
+}
+
+function randomOdd() {
+  const u = new Uint32Array(1); crypto.getRandomValues(u);
+  return 2 * (u[0] % 302) + 1; // 1,3,...,603
+}
+
+getPage(1).then(p => { $('#fat').innerHTML = pageHTML(p); })
+  .catch(() => { $('#fat').textContent = 'Gagal memuat. Periksa koneksi internet, lalu muat ulang halaman.'; });
+
+$('#buka').onclick = async () => {
+  const b = $('#buka'); b.disabled = true; b.textContent = 'Membuka…';
+  try {
+    const n = randomOdd();
+    const pages = await Promise.all([getPage(n), getPage(n + 1)]);
+    cur = { n, pages, niat: $('#niat').value.trim(), range: rangeText(pages) };
+    cur.look = {};
+    pages.forEach(p => p.ar.forEach((a, j) => {
+      let t = a.text.replace(/^\uFEFF/, ''); const w = t.split(' ');
+      if (a.numberInSurah === 1 && a.surah.number !== 1 && a.surah.number !== 9 && strip(w[0]) === 'بسم') t = w.slice(4).join(' ');
+      cur.look[a.surah.number + ':' + a.numberInSurah] = { ar: t, id: p.id[j].text, s: a.surah.number, a: a.numberInSurah, nm: a.surah.englishName };
+    }));
+    cur.pick = null; $('#share').hidden = true;
+    // anak pertama tampil di kanan (direction:rtl): halaman ganjil di kanan, genap di kiri
+    $('#spread').innerHTML = pages.map(p => `<div class="pg">${pageHTML(p)}</div>`).join('');
+    $('#meta').innerHTML = `Halaman ${n}-${n + 1}, juz ${pages[0].ar[0].juz}. <span>${cur.range}</span>`;
+    $('#tr').innerHTML = pages.flatMap(p => p.id).map(a => `<p><b>${a.surah.number}:${a.numberInSurah}</b>${a.text}</p>`).join('');
+    FIELDS.forEach(([k]) => $('#f_' + k).value = '');
+    $('#st').textContent = '';
+    $('#s1').classList.remove('on'); $('#s2').classList.add('on');
+    scrollTo(0, 0);
+  } catch (e) {
+    alert('Gagal memuat halaman mushaf. Periksa koneksi internet lalu coba lagi.');
+  }
+  b.disabled = false; b.textContent = 'Sudah baca Al-Fatihah, buka mushaf';
+};
+
+const PAL = [
+  { n: 'Zamrud', b1: '#0f2a24', b2: '#1f4d40', ink: '#f6efd6', ac: '#e1c36e' },
+  { n: 'Malam', b1: '#0c1630', b2: '#26386a', ink: '#eef2ff', ac: '#a9c0ff' },
+  { n: 'Pasir', b1: '#f6efdc', b2: '#e2d1a6', ink: '#2b2416', ac: '#8a6a1f' },
+  { n: 'Senja', b1: '#2a1020', b2: '#64294a', ink: '#fdeef4', ac: '#f2b8d0' },
+  { n: 'Fajar', b1: '#3b2010', b2: '#b8652c', ink: '#fff4e6', ac: '#ffdba6' }
+];
+// latar mengikuti waktu: fajar, siang, senja, malam
+let pal = (() => { const h = new Date().getHours(); return h < 4 || h >= 19 ? 1 : h < 7 ? 4 : h < 15 ? 2 : 3; })();
+$('#chips').innerHTML = PAL.map((q, i) => `<button class="chip" data-i="${i}" title="${q.n}" aria-label="${q.n}" style="background:linear-gradient(135deg,${q.b1},${q.b2})"></button>`).join('');
+$('#chips').onclick = e => { const b = e.target.closest('.chip'); if (b) { pal = +b.dataset.i; draw(); } };
+
+$('#spread').onclick = e => {
+  const el = e.target.closest('.ay'); if (!el) return;
+  document.querySelectorAll('.ay.pick').forEach(x => x.classList.remove('pick'));
+  el.classList.add('pick');
+  cur.pick = cur.look[el.dataset.k];
+  $('#pk').textContent = `(QS. ${cur.pick.nm} ${cur.pick.s}:${cur.pick.a})`;
+  $('#share').hidden = false; draw();
+};
+
+async function draw() {
+  const p = cur.pick, P = PAL[pal], c = $('#cv'), x = c.getContext('2d'), W = 1080, H = 1350;
+  document.querySelectorAll('.chip').forEach((b, i) => b.classList.toggle('on', i === pal));
+  await Promise.all([document.fonts.load("48px 'Amiri Quran'"), document.fonts.load("32px 'Alegreya Sans'")]);
+  const g = x.createLinearGradient(0, 0, W * .5, H); g.addColorStop(0, P.b1); g.addColorStop(1, P.b2);
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = P.ac; x.globalAlpha = .55; x.lineWidth = 3; x.strokeRect(44, 44, W - 88, H - 88); x.globalAlpha = 1;
+  const wrap = (t, f, w) => { x.font = f; const o = []; let l = ''; t.split(' ').forEach(wd => { const tt = l ? l + ' ' + wd : wd; if (x.measureText(tt).width > w && l) { o.push(l); l = wd; } else l = tt; }); if (l) o.push(l); return o; };
+  const mw = W - 240, area = 1000, ar = `${p.ar} \u06DD${arN(p.a)}`;
+  let fs = 80, aL, tL, aH, tH, tf;
+  for (; fs >= 30; fs -= 4) {
+    aL = wrap(ar, `${fs}px 'Amiri Quran'`, mw); aH = fs * 1.95;
+    tf = Math.max(26, Math.round(fs * .42)); tL = wrap(p.id, `${tf}px 'Alegreya Sans'`, mw); tH = tf * 1.5;
+    if (aL.length * aH + 70 + tL.length * tH <= area) break;
+  }
+  let y = 120 + (area - (aL.length * aH + 70 + tL.length * tH)) / 2;
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = P.ink;
+  x.direction = 'rtl'; x.font = `${fs}px 'Amiri Quran'`;
+  aL.forEach((l, i) => x.fillText(l, W / 2, y + (i + .5) * aH));
+  y += aL.length * aH + 35;
+  x.fillStyle = P.ac; x.fillRect(W / 2 - 40, y - 1.5, 80, 3); y += 35;
+  x.direction = 'ltr'; x.font = `${tf}px 'Alegreya Sans'`; x.fillStyle = P.ink; x.globalAlpha = .92;
+  tL.forEach((l, i) => x.fillText(l, W / 2, y + (i + .5) * tH)); x.globalAlpha = 1;
+  x.font = "500 36px 'Alegreya Sans'"; x.fillStyle = P.ac;
+  x.fillText(`QS. ${p.nm} (${p.s}:${p.a})`, W / 2, H - 120);
+}
+
+function waText() {
+  const p = cur.pick;
+  return `*${p.ar} \u06DD${arN(p.a)}*\n\n_${p.id}_\n\nQS. ${p.nm} (${p.s}:${p.a})`;
+}
+$('#wat').onclick = async () => { await navigator.clipboard.writeText(waText()); $('#st').textContent = 'Teks WA disalin.'; };
+$('#wa').onclick = async () => {
+  await draw();
+  const b = await new Promise(r => $('#cv').toBlob(r, 'image/jpeg', 0.92));
+  const f = new File([b], `ayat-${cur.pick.s}-${cur.pick.a}.jpg`, { type: 'image/jpeg' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    try { await navigator.share({ files: [f], text: waText() }); } catch (e) {}
+  } else {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click();
+    $('#st').textContent = 'Gambar diunduh. Kirim lewat WhatsApp, teksnya bisa disalin dengan tombol di samping.';
+  }
+};
+
+$('#baru').onclick = () => { $('#niat').value = ''; $('#s2').classList.remove('on'); $('#s1').classList.add('on'); scrollTo(0, 0); };
+
+function uraian() {
+  const parts = [`Cakupan: ${cur.range}`];
+  if (cur.pick) parts.push(`Ayat utama: QS. ${cur.pick.nm} ${cur.pick.s}:${cur.pick.a}`);
+  FIELDS.forEach(([k, l]) => { const v = $('#f_' + k).value.trim(); if (v) parts.push(`${l}:\n${v}`); });
+  return parts.join('\n\n');
+}
+
+function tanggal() {
+  const d = new Date(), z = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+}
+
+$('#simpan').onclick = async () => {
+  const row = { tanggal: tanggal(), halaman: `${cur.n}-${cur.n + 1}`, uraian: uraian(), niat: cur.niat };
+  const st = $('#st');
+  if (SCRIPT_URL && cur.pick) {
+    await draw();
+    row.gambar = $('#cv').toDataURL('image/jpeg', 0.9).split(',')[1];
+    row.namaFile = `${row.tanggal}_hal${row.halaman}_${cur.pick.s}-${cur.pick.a}.jpg`;
+  }
+  if (!SCRIPT_URL) {
+    const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+    await navigator.clipboard.writeText([row.tanggal, q("'" + row.halaman), q(row.uraian), q(row.niat)].join('\t'));
+    st.textContent = 'SCRIPT_URL belum diisi. Baris sudah disalin, tempel ke Sheet.';
+    return;
+  }
+  st.textContent = 'Menyimpan…';
+  try {
+    const r = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(row) });
+    const j = await r.json();
+    st.textContent = j.ok ? (row.gambar ? 'Tersimpan di Sheet dan Drive.' : 'Tersimpan di Sheet. Tandai satu ayat dulu kalau kartunya ingin ikut ke Drive.') : 'Gagal menyimpan: ' + (j.error || 'tidak diketahui');
+  } catch (e) { st.textContent = 'Gagal menyimpan. Periksa SCRIPT_URL dan koneksi.'; }
+};
+
+$('#salin').onclick = async () => {
+  const verses = cur.pages.map((p, i) => p.ar.map((a, j) => `${a.surah.number}:${a.numberInSurah} ${a.text} — ${p.id[j].text}`).join('\n')).join('\n');
+  const txt = `Saya membuka mushaf Utsmani secara acak (setelah membaca Al-Fatihah). Terbuka halaman ${cur.n}-${cur.n + 1}.
+Persoalan/niat: ${cur.niat || '(tidak ditulis)'}
+Cakupan: ${cur.range}
+
+${verses}
+
+Tolong bedah dua halaman ini:
+1. Asbabun nuzul (sebutkan sumbernya; jika tidak ada riwayat yang jelas, katakan tidak ada).
+2. Kisah atau tema utama.
+3. Perintah, anjuran, dan larangan.
+4. Ringkasan tafsir dari kitab yang dikenal (Ibnu Katsir, Jalalain, Al-Misbah, Kemenag), sebutkan rujukannya.
+5. Konteks dan rangkuman.
+6. Pelajaran yang bisa diambil, dan kaitannya dengan persoalan saya.
+Bedakan dengan jelas bagian yang bersumber dari kitab dan bagian yang renungan umum.`;
+  await navigator.clipboard.writeText(txt);
+  $('#st').textContent = 'Teks disalin. Tempel ke Claude, lalu salin hasilnya ke kolom di atas.';
+};
+</script>
+</body>
+</html>
