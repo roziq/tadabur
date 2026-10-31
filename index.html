@@ -103,6 +103,7 @@ const FIELDS = [
   ['tafsir', 'Tafsir (sebutkan kitab rujukannya)'],
   ['ringkas', 'Rangkuman'],
   ['pelajaran', 'Pelajaran untuk persoalanku'],
+  ['saran', 'Saran ayat utama dari AI'],
   ['lain', 'Catatan lain']
 ];
 $('#form').innerHTML = FIELDS.map(([k, l]) => `<div><label for="f_${k}">${l}</label><textarea id="f_${k}"></textarea></div>`).join('');
@@ -306,18 +307,19 @@ function buildPrompt(arab) {
   const v = cur.pages.map(p => p.ar.map((a, j) => `${a.surah.number}:${a.numberInSurah} ${arab ? a.text + ' — ' : ''}${p.id[j].text}`).join('\n')).join('\n');
   return `Saya membuka mushaf Utsmani secara acak (setelah membaca Al-Fatihah). Terbuka halaman ${cur.n}-${cur.n + 1}.
 Niat/persoalan: ${cur.niat || '(tidak ditulis)'}
-Cakupan: ${cur.range}
+Cakupan: ${cur.range}${cur.pick ? `
+Ayat yang saya tandai sebagai ayat utama: QS. ${cur.pick.nm} ${cur.pick.s}:${cur.pick.a}. Beri perhatian lebih pada ayat ini di bagian 4 dan 6.` : ''}
 
 ${v}
 
-Tolong bedah dua halaman ini. Tulis jawaban dalam 7 bagian bernomor persis seperti di bawah. Setiap bagian ditulis di dalam blok kode tersendiri (supaya bisa disalin per bagian), berisi teks biasa tanpa format markdown, bahasa Indonesia yang ringkas. Judul bagian ditulis di luar blok kode.
+Tolong bedah dua halaman ini. Tulis jawaban dalam 8 bagian bernomor persis seperti di bawah. Setiap bagian ditulis di dalam blok kode tersendiri (supaya bisa disalin per bagian), berisi teks biasa tanpa format markdown, bahasa Indonesia yang ringkas. Judul bagian ditulis di luar blok kode.
 1. Asbabun nuzul dan konteks (sebutkan sumbernya; jika tidak ada riwayat yang jelas, katakan tidak ada; jangan mengarang riwayat)
 2. Kisah atau tema
 3. Perintah, anjuran, larangan
 4. Tafsir (sebutkan kitab rujukan: Ibnu Katsir, Jalalain, Al-Misbah, Kemenag; bedakan perbedaan pendapat ulama)
 5. Rangkuman
 6. Pelajaran untuk persoalanku (awali dengan "Renungan:" karena ini bukan dari kitab)
-7. Catatan lain (klaim yang paling perlu dicek ulang pada kitab aslinya)`;
+7. Saran ayat utama (sebutkan 1-2 ayat dari dua halaman ini yang paling layak dipilih, dalam format "QS. Nama Surah nomor:ayat", masing-masing dengan alasan singkat sesuai konteks dan niat; ini hanya saran, keputusan ada pada saya)\n8. Catatan lain (klaim yang paling perlu dicek ulang pada kitab aslinya)`;
 }
 
 $('#gem').onclick = async () => {
