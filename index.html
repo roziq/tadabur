@@ -71,6 +71,7 @@ textarea{width:100%;border-radius:6px;border:1px solid #3c5b50;background:#0b1f1
   <div class="row">
     <button id="simpan">Simpan ke Sheet</button>
     <button id="kirim">Bedah di Claude</button>
+    <button id="gem">Bedah di Gemini</button>
     <button id="auto" class="ghost">Bedah otomatis dengan Claude</button>
     <button id="salin" class="ghost">Salin teks untuk dibedah AI</button>
     <button id="baru" class="ghost">Sesi baru</button>
@@ -318,6 +319,12 @@ Tolong bedah dua halaman ini. Tulis jawaban dalam 7 bagian bernomor persis seper
 6. Pelajaran untuk persoalanku (awali dengan "Renungan:" karena ini bukan dari kitab)
 7. Catatan lain (klaim yang paling perlu dicek ulang pada kitab aslinya)`;
 }
+
+$('#gem').onclick = async () => {
+  window.open('https://gemini.google.com/app', '_blank');
+  try { await navigator.clipboard.writeText(buildPrompt(true)); } catch (e) {}
+  $('#st').textContent = 'Gemini terbuka dan teks sudah disalin. Tempel (Ctrl+V) di kotak Gemini, kirim, lalu salin tiap bagian jawabannya ke kolom di sini.';
+};
 
 $('#salin').onclick = async () => {
   await navigator.clipboard.writeText(buildPrompt(true));
