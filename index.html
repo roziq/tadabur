@@ -70,6 +70,8 @@ textarea{width:100%;border-radius:6px;border:1px solid #3c5b50;background:#0b1f1
   <div class="form" id="form"></div>
   <div class="row">
     <button id="simpan">Simpan ke Sheet</button>
+    <button id="kirim">Bedah di Claude</button>
+    <button id="auto" class="ghost">Bedah otomatis dengan Claude</button>
     <button id="salin" class="ghost">Salin teks untuk dibedah AI</button>
     <button id="baru" class="ghost">Sesi baru</button>
   </div>
@@ -84,7 +86,7 @@ textarea{width:100%;border-radius:6px;border:1px solid #3c5b50;background:#0b1f1
 
 <script>
 // Isi dengan URL Web App Apps Script (lihat Code.gs). Kosong = hasil disalin ke clipboard.
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwPTMmo9B47Yz0Rwck5OJzyoOhUEsCL7JqHED1d1RHfdsTSPuDL1asbNhmwHEHdcs_KsQ/exec';
+const SCRIPT_URL = '';
 
 const API = 'https://api.alquran.cloud/v1/page/';
 const $ = s => document.querySelector(s);
@@ -241,6 +243,28 @@ $('#wa').onclick = async () => {
   }
 };
 
+$('#auto').onclick = async () => {
+  const b = $('#auto'), st = $('#st');
+  let pass = localStorage.getItem('mpass');
+  if (!pass) { pass = prompt('Kata sandi aplikasi (sekali saja di perangkat ini):'); if (!pass) return; }
+  const ayat = cur.pages.map(p => p.ar.map((a, j) => `${a.surah.number}:${a.numberInSurah} ${a.text} — ${p.id[j].text}`).join('\n')).join('\n');
+  b.disabled = true; st.textContent = 'Claude sedang membedah, tunggu sekitar setengah menit…';
+  try {
+    const r = await fetch('/api/bedah', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pass, niat: cur.niat, range: cur.range, halaman: `${cur.n}-${cur.n + 1}`, ayat }) });
+    const j = await r.json();
+    if (r.status === 401) { localStorage.removeItem('mpass'); st.textContent = 'Kata sandi salah. Coba lagi.'; }
+    else if (!r.ok) st.textContent = 'Gagal: ' + (j.error || r.status);
+    else {
+      localStorage.setItem('mpass', pass);
+      FIELDS.forEach(([k]) => { if (j[k]) $('#f_' + k).value = j[k]; });
+      if (j.verifikasi) $('#f_lain').value = 'Perlu dicek ulang:\n' + j.verifikasi + ($('#f_lain').value ? '\n\n' + $('#f_lain').value : '');
+      st.textContent = 'Selesai. Periksa dan sunting dulu sebelum disimpan.';
+    }
+  } catch (e) { st.textContent = 'Tidak bisa menghubungi server. Fitur ini hanya jalan di alamat Vercel, bukan dari file lokal.'; }
+  b.disabled = false;
+};
+
 $('#baru').onclick = () => { $('#niat').value = ''; $('#s2').classList.remove('on'); $('#s1').classList.add('on'); scrollTo(0, 0); };
 
 function uraian() {
@@ -277,24 +301,36 @@ $('#simpan').onclick = async () => {
   } catch (e) { st.textContent = 'Gagal menyimpan. Periksa SCRIPT_URL dan koneksi.'; }
 };
 
-$('#salin').onclick = async () => {
-  const verses = cur.pages.map((p, i) => p.ar.map((a, j) => `${a.surah.number}:${a.numberInSurah} ${a.text} — ${p.id[j].text}`).join('\n')).join('\n');
-  const txt = `Saya membuka mushaf Utsmani secara acak (setelah membaca Al-Fatihah). Terbuka halaman ${cur.n}-${cur.n + 1}.
-Persoalan/niat: ${cur.niat || '(tidak ditulis)'}
+function buildPrompt(arab) {
+  const v = cur.pages.map(p => p.ar.map((a, j) => `${a.surah.number}:${a.numberInSurah} ${arab ? a.text + ' — ' : ''}${p.id[j].text}`).join('\n')).join('\n');
+  return `Saya membuka mushaf Utsmani secara acak (setelah membaca Al-Fatihah). Terbuka halaman ${cur.n}-${cur.n + 1}.
+Niat/persoalan: ${cur.niat || '(tidak ditulis)'}
 Cakupan: ${cur.range}
 
-${verses}
+${v}
 
-Tolong bedah dua halaman ini:
-1. Asbabun nuzul (sebutkan sumbernya; jika tidak ada riwayat yang jelas, katakan tidak ada).
-2. Kisah atau tema utama.
-3. Perintah, anjuran, dan larangan.
-4. Ringkasan tafsir dari kitab yang dikenal (Ibnu Katsir, Jalalain, Al-Misbah, Kemenag), sebutkan rujukannya.
-5. Konteks dan rangkuman.
-6. Pelajaran yang bisa diambil, dan kaitannya dengan persoalan saya.
-Bedakan dengan jelas bagian yang bersumber dari kitab dan bagian yang renungan umum.`;
-  await navigator.clipboard.writeText(txt);
-  $('#st').textContent = 'Teks disalin. Tempel ke Claude, lalu salin hasilnya ke kolom di atas.';
+Tolong bedah dua halaman ini. Tulis jawaban dalam 7 bagian bernomor persis seperti di bawah. Setiap bagian ditulis di dalam blok kode tersendiri (supaya bisa disalin per bagian), berisi teks biasa tanpa format markdown, bahasa Indonesia yang ringkas. Judul bagian ditulis di luar blok kode.
+1. Asbabun nuzul dan konteks (sebutkan sumbernya; jika tidak ada riwayat yang jelas, katakan tidak ada; jangan mengarang riwayat)
+2. Kisah atau tema
+3. Perintah, anjuran, larangan
+4. Tafsir (sebutkan kitab rujukan: Ibnu Katsir, Jalalain, Al-Misbah, Kemenag; bedakan perbedaan pendapat ulama)
+5. Rangkuman
+6. Pelajaran untuk persoalanku (awali dengan "Renungan:" karena ini bukan dari kitab)
+7. Catatan lain (klaim yang paling perlu dicek ulang pada kitab aslinya)`;
+}
+
+$('#salin').onclick = async () => {
+  await navigator.clipboard.writeText(buildPrompt(true));
+  $('#st').textContent = 'Teks disalin. Tempel ke Claude, lalu salin tiap bagian jawabannya ke kolom di sini.';
+};
+
+$('#kirim').onclick = () => {
+  const t = buildPrompt(false), url = 'https://claude.ai/new?q=' + encodeURIComponent(t), ok = url.length < 12000;
+  window.open(ok ? url : 'https://claude.ai/new', '_blank');
+  navigator.clipboard.writeText(t).catch(() => {});
+  $('#st').textContent = ok
+    ? 'Claude terbuka dengan teks sudah terisi. Tekan kirim, lalu salin tiap bagian jawabannya ke kolom di sini.'
+    : 'Claude terbuka. Teks terlalu panjang untuk tautan, jadi sudah disalin: tempel (Ctrl+V) lalu kirim.';
 };
 </script>
 </body>
